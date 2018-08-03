@@ -1,14 +1,16 @@
-﻿$VULTR_TOKEN="your-vultr-key-token"
+﻿$DO_TOKEN="your-digitalocean-token"
 $MACHINE_NAME="my-machine"
 
 $accessKey="AKIAIOSFODNN7EXAMPLE"
 $secretKey="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 
 docker-machine create `
-    --driver=vultr  `
-    --vultr-api-key=${VULTR_TOKEN} `
-    --vultr-os-id=215 --vultr-region-id=7 `
-    --vultr-private-networking=true `
+	--driver=digitalocean `
+	--digitalocean-access-token=$DO_TOKEN `
+	--digitalocean-size=1gb `
+	--digitalocean-region=ams3 `
+	--digitalocean-private-networking=true `
+	--digitalocean-image=ubuntu-16-04-x64 `
     $MACHINE_NAME
 
 $MACHINE_IP = ((docker-machine ip $MACHINE_NAME) | Out-String).trim()
