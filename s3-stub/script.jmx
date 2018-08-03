@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="4.0" jmeter="4.0 r1823414">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Test Plan" enabled="true">
+      <stringProp name="TestPlan.comments"></stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="minutes" elementType="Argument">
+            <stringProp name="Argument.name">minutes</stringProp>
+            <stringProp name="Argument.value">${__P(STUB_DURATION_MINUTES, 120)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="sheetAtMinute" elementType="Argument">
+            <stringProp name="Argument.name">sheetAtMinute</stringProp>
+            <stringProp name="Argument.value">${__P(STUB_OBJ_PER_MINUTES, 10)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="nrThreads" elementType="Argument">
+            <stringProp name="Argument.name">nrThreads</stringProp>
+            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="rampUpTime" elementType="Argument">
+            <stringProp name="Argument.name">rampUpTime</stringProp>
+            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="host" elementType="Argument">
+            <stringProp name="Argument.name">host</stringProp>
+            <stringProp name="Argument.value">minio</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="bucket" elementType="Argument">
+            <stringProp name="Argument.name">bucket</stringProp>
+            <stringProp name="Argument.value">test-bucket</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="kbSize" elementType="Argument">
+            <stringProp name="Argument.name">kbSize</stringProp>
+            <stringProp name="Argument.value">512</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="s3AccessKey" elementType="Argument">
+            <stringProp name="Argument.name">s3AccessKey</stringProp>
+            <stringProp name="Argument.value">${__P(MINIO_ACCESS_KEY, access)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="s3SecretKey" elementType="Argument">
+            <stringProp name="Argument.name">s3SecretKey</stringProp>
+            <stringProp name="Argument.value">${__P(MINIO_SECRET_KEY, secret)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+      <stringProp name="TestPlan.user_define_classpath"></stringProp>
+    </TestPlan>
+    <hashTree>
+      <SetupThreadGroup guiclass="SetupThreadGroupGui" testclass="SetupThreadGroup" testname="setUp" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">stoptestnow</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">1</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">1</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">1</stringProp>
+        <longProp name="ThreadGroup.start_time">1512573048000</longProp>
+        <longProp name="ThreadGroup.end_time">1512573048000</longProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+      </SetupThreadGroup>
+      <hashTree>
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Setup" enabled="true">
+          <stringProp name="scriptLanguage">groovy</stringProp>
+          <stringProp name="parameters"></stringProp>
+          <stringProp name="filename"></stringProp>
+          <stringProp name="cacheKey">true</stringProp>
+          <stringProp name="script">import io.minio.MinioClient
+import io.minio.errors.MinioException
+
+def hostName = vars.get(&quot;host&quot;)
+def accessKey = vars.get(&quot;s3AccessKey&quot;)
+def secretKey = vars.get(&quot;s3SecretKey&quot;)
+def testBucket = vars.get(&quot;bucket&quot;)
+
+MinioClient minioClient = null
+
+try {
+	minioClient = new MinioClient(&quot;http://$hostName:9000&quot;, accessKey, secretKey)
+	
+	// Check if the bucket already exists.
+	def isExist = minioClient.bucketExists(testBucket)
+	if(isExist) {
+	  log.info(&quot;Bucket $testBucket already exists.&quot;)
+	} else {
+	  // Make a new bucket called asiatrip to hold a zip file of photos.
+	  log.info(&quot;Bucket $testBucket does not exist -&gt; we create it.&quot;)
+	  minioClient.makeBucket(testBucket)
+	}
+	
+	def sampleFile = &quot;C:/Users/vmarrazzo/Desktop/SpazioWork/stubbing/docker_commands.txt&quot;
+	def sampleFileOnS3 = &quot;docker_commands.txt&quot;
+	
+	// Upload the zip file to the bucket with putObject
+	minioClient.putObject(testBucket, sampleFileOnS3, sampleFile)
+	log.info(&quot;$sampleFile is successfully uploaded as $sampleFileOnS3 to `$testBucket` bucket.&quot;)
+} catch (MinioException e) {
+	log.error(&quot;MinioException occurred: &quot; + e.getMessage())
+} catch (Exception e2) {
+	log.error(&quot;Generic Exception occurred: &quot; + e2.getMessage())
+}
+
+log.info(&quot;#### Completed setup!&quot;)
+
+/**
+ * Save objects required into other Thread Groups
+ */
+System.getProperties().put(&quot;MinioClient&quot;, minioClient)
+
+vars.put(&quot;setupDone&quot;, &quot;true&quot;)
+
+
+</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+      </hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Producer" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <intProp name="LoopController.loops">-1</intProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">${nrThreads}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${rampUpTime}</stringProp>
+        <longProp name="ThreadGroup.start_time">1512566050000</longProp>
+        <longProp name="ThreadGroup.end_time">1512566050000</longProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">${__jexl2(${minutes}*60)}</stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+      </ThreadGroup>
+      <hashTree>
+        <ConstantThroughputTimer guiclass="TestBeanGUI" testclass="ConstantThroughputTimer" testname="Constant Throughput Timer" enabled="true">
+          <intProp name="calcMode">2</intProp>
+          <stringProp name="throughput">${sheetAtMinute}</stringProp>
+        </ConstantThroughputTimer>
+        <hashTree/>
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Producer Data Stream" enabled="true">
+          <stringProp name="cacheKey">true</stringProp>
+          <stringProp name="filename"></stringProp>
+          <stringProp name="parameters"></stringProp>
+          <stringProp name="script">import java.util.concurrent.ThreadLocalRandom;
+
+import java.time.Instant
+
+import io.minio.errors.MinioException
+
+def minioClient = System.getProperties().get(&quot;MinioClient&quot;)
+def testBucket = vars.get(&quot;bucket&quot;)
+def kbSize = vars.get(&quot;kbSize&quot;) as Integer
+
+try {
+	ThreadLocalRandom tlr = ThreadLocalRandom.current()
+		
+	StringBuilder builder = new StringBuilder(kbSize * 1024)
+		
+	String SALTCHARS = &quot;ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890&quot;
+
+     while (builder.length() &lt; kbSize * 1024) { // length of the random string.
+        int index = (int) (tlr.nextFloat() * SALTCHARS.length())
+        builder.append(SALTCHARS.charAt(index))
+     }
+		
+	ByteArrayInputStream bais = new ByteArrayInputStream(builder.toString().getBytes(&quot;UTF-8&quot;))
+	
+	def sampleFileOnS3 = UUID.randomUUID().toString()
+	
+	def start = Instant.now()
+
+	minioClient.putObject(testBucket, sampleFileOnS3, bais, bais.available(), &quot;application/octet-stream&quot;)
+	
+	def stop = Instant.now()
+  
+	bais.close();
+		
+	def msg = &quot;$kbSize kB successfully uploaded as $sampleFileOnS3 to `$testBucket` bucket.&quot;
+
+	SampleResult.setResponseData(msg)
+	SampleResult.setDataType( org.apache.jmeter.samplers.SampleResult.TEXT )
+	SampleResult.setLatency( stop.toEpochMilli() - start.toEpochMilli() )
+	
+} catch (MinioException e) {
+	log.error(&quot;MinioException occurred: &quot; + e.getMessage())
+} catch (Exception e2) {
+	log.error(&quot;Generic Exception occurred: &quot; + e2.getMessage())
+}</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+      </hashTree>
+      <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+      <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="false">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
